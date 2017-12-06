@@ -63,8 +63,7 @@ pub fn init(pointer: *mut Vertex, count: usize, radius: f64) {
 
 const GRAVITY: f64 = 1.5;
 const DRAG_TENSION: f64 = 4.0;
-const TENSION: f64 = 30.0;
-const TENSION_DAMP: f64 = 0.003;
+const TENSION: f64 = 60.0;
 const PRESSURE: f64 = 15.0;
 const FRICTION: f64 = 3.0;
 const BODY_DECAY: f64 = 0.03;
@@ -178,17 +177,18 @@ pub fn step(
             let dy = dragy - avgy;
             let d2 = dx * dx + dy * dy;
             let d = d2.sqrt();
-            ax += (dx / d) * DRAG_TENSION * d * time;
-            ay += (dy / d) * DRAG_TENSION * d * time;
+            if d > 1.0 {
+                ax += (dx / d) * DRAG_TENSION * d * time;
+                ay += (dy / d) * DRAG_TENSION * d * time;
+            }
         }
 
         vertex.vx += cap(ax * time, 10.0);
         vertex.vy += cap(ay * time, 10.0);
 
-
         // Decay movement relative to body
-        let relvx = (vertex.vx - avgvx);
-        let relvy = (vertex.vy - avgvy);
+        let relvx = vertex.vx - avgvx;
+        let relvy = vertex.vy - avgvy;
         vertex.vx -= relvx * VERTEX_DECAY * time;
         vertex.vy -= relvy * VERTEX_DECAY * time;
 

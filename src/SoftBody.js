@@ -6,7 +6,7 @@ if (process.browser) {
   GyroNorm = require("../node_modules/gyronorm/dist/gyronorm.complete.min");
 }
 
-let speed = 20;
+let speed = 40;
 
 function modulo(n, m) {
   return (n % m + m) % m;
@@ -17,11 +17,14 @@ class Body {
     this.vertexCount = vertexCount;
     this.radius = radius;
     this.vertices = [];
-    this.isDragging = false;
-    this.dragX = 0;
-    this.dragY = 0;
+    this.isMouseDown = false;
+    this.mouseX = 0;
+    this.mouseY = 0;
     this.gravX = 0;
     this.gravY = 1;
+    this.centerX = 0;
+    this.centerY = 0;
+    this.keys = { left: false, right: false, up: false, down: false };
     for (let i = 0; i < vertexCount; i++) this.vertices.push({ x: 0, y: 0 });
     if (process.browser) {
       window.vertices = this.vertices;
@@ -56,8 +59,8 @@ class Body {
   }
 
   handleDrag(clientX, clientY) {
-    this.dragX = clientX - window.innerWidth / 2;
-    this.dragY = clientY - window.innerHeight / 2;
+    this.mouseX = clientX - window.innerWidth / 2;
+    this.mouseY = clientY - window.innerHeight / 2;
   }
 
   update(force) {
@@ -65,6 +68,7 @@ class Body {
     const width = window.innerWidth;
     const height = window.innerHeight;
     const finalSpeed = force === true ? 30 : speed;
+    const { isDragging, dragX, dragY } = this;
 
     if (!this.isPrepared) return;
 
@@ -78,9 +82,9 @@ class Body {
         height,
         this.gravX,
         this.gravY,
-        this.isDragging,
-        this.dragX,
-        this.dragY,
+        isDragging,
+        dragX,
+        dragY,
         1.0/speed
       );
     }
@@ -91,6 +95,7 @@ class Body {
       this.vertices[i].x = this.vertexData[i * 4 + 0];
       this.vertices[i].y = this.vertexData[i * 4 + 1];
       this.centerX += this.vertices[i].x;
+      if (isNaN(this.centerX)) throw new Error("Vertex "+ i + " " + JSON.stringify(this.vertices[i]) + " caused NaN");
       this.centerY += this.vertices[i].y;
     }
     this.centerX /= this.vertexCount;
@@ -99,6 +104,28 @@ class Body {
 
   teardown() {
     this.module.dealloc(this.pointer, this.vertexCount * 4);
+  }
+
+  get isDragging() {
+    const keys = this.keys;
+    return this.isMouseDown || keys.left || keys.right || keys.up || keys.down;
+  }
+
+  get dragX() {
+    if (this.isMouseDown) return this.mouseX;
+    let x = this.centerX;
+    if (this.keys.left) x -= this.radius / 2;
+    if (this.keys.right) x += this.radius / 2;
+    if (isNaN(x)) throw new Error("Somehow got NaN " + this.radius + " " + this.centerX);
+    return x;
+  }
+
+  get dragY() {
+    if (this.isMouseDown) return this.mouseY;
+    let y = this.centerY;
+    if (this.keys.up) y -= this.radius / 2;
+    if (this.keys.down) y += this.radius / 2;
+    return y;
   }
 }
 
@@ -116,7 +143,7 @@ export default class SoftBody extends React.Component {
 
   startDrag = e => {
     e.preventDefault();
-    this.body.isDragging = true;
+    this.body.isMouseDown = true;
     let moveHandler, endHandler, moveEvent, endEvent;
     if (e.touches) {
       // Use touch events
@@ -137,47 +164,51 @@ export default class SoftBody extends React.Component {
     window.addEventListener(
       endEvent,
       (endHandler = e => {
-        this.body.isDragging = false;
+        this.body.isMouseDown = false;
         window.removeEventListener(moveEvent, moveHandler);
         window.removeEventListener(endEvent, endHandler);
       })
     );
   };
 
-  handleDeviceOrientation = () => {};
+  handleDeviceOrientation = data => {
+    if (!data.do.alpha) return;
+    // This took a lot of guess and check
+    this.alpha = data.do.alpha;
+    this.beta = data.do.beta;
+    this.gamma = data.do.gamma;
+    const yaw = -this.gamma * Math.PI / 180;
+    const pitch = this.alpha * Math.PI / 180;
+    const roll = this.beta * Math.PI / 180;
+    const { cos, sin } = Math;
+
+    const x = -cos(yaw) * sin(pitch) * sin(roll) - sin(yaw) * cos(roll);
+    const y = cos(pitch) * sin(roll);
+    // const z = -sin(yaw)*sin(pitch)*sin(roll)+cos(yaw)*cos(roll);
+
+    this.body.gravX = 3 * x;
+    this.body.gravY = 3 * y;
+  };
+
+  handleKey = e => {
+    const val = e.type === "keydown" ? true : false;
+    if (e.code === "ArrowLeft")
+      this.body.keys.left = val;
+    if (e.code === "ArrowRight")
+      this.body.keys.right = val;
+    if (e.code === "ArrowUp")
+      this.body.keys.up = val;
+    if (e.code === "ArrowDown")
+      this.body.keys.down = val;
+  }
 
   componentDidMount() {
     if (process.browser) this.body = new Body(25, 100);
     requestAnimationFrame(this.update);
-    document.addEventListener("keydown", e => {
-      if (e.code === "Space") {
-        if (this.body.isPaused) {
-          this.body.update(true);
-        }
-        this.body.isPaused = true;
-      }
-    });
+    document.addEventListener("keydown", this.handleKey);
+    document.addEventListener("keyup", this.handleKey);
     const gn = new GyroNorm();
-    gn.init().then(() => {
-      gn.start(data => {
-        if (!data.do.alpha) return;
-        // This took a lot of guess and check
-        this.alpha = data.do.alpha;
-        this.beta = data.do.beta;
-        this.gamma = data.do.gamma;
-        const yaw = -this.gamma * Math.PI / 180;
-        const pitch = this.alpha * Math.PI / 180;
-        const roll = this.beta * Math.PI / 180;
-        const { cos, sin } = Math;
-
-        const x = -cos(yaw) * sin(pitch) * sin(roll) - sin(yaw) * cos(roll);
-        const y = cos(pitch) * sin(roll);
-        // const z = -sin(yaw)*sin(pitch)*sin(roll)+cos(yaw)*cos(roll);
-
-        this.body.gravX = 3 * x;
-        this.body.gravY = 3 * y;
-      });
-    });
+    gn.init().then(() => gn.start(this.handleDeviceOrientation));
   }
 
   componentWillUnmount() {
@@ -244,14 +275,14 @@ export default class SoftBody extends React.Component {
             <circle
               fill="#333"
               cx={
-                (this.body.vertices[Math.floor(this.body.vertexCount / 3)].x +
-                  this.body.centerX * 2) /
-                3
+                (this.body.vertices[Math.floor(this.body.vertexCount / 3)].x * 2 +
+                  this.body.centerX * 3) /
+                5
               }
               cy={
-                (this.body.vertices[Math.floor(this.body.vertexCount / 3)].y +
-                  this.body.centerY * 2) /
-                3
+                (this.body.vertices[Math.floor(this.body.vertexCount / 3)].y * 2 +
+                  this.body.centerY * 3) /
+                5
               }
               r={this.body.radius / 4}
             />
