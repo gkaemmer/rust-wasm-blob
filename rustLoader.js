@@ -8,10 +8,11 @@ module.exports = function(source) {
   const callback = this.async();
 
   const wasmFile = __dirname + "/out.wasm"; // can be anywhere writable
+  const wasmFileTemp = __dirname + "/out-temp.wasm"; // can be anywhere writable
 
   const cmd = `rustc +nightly --crate-type=cdylib --target=wasm32-unknown-unknown -O ${
     this.resourcePath
-  } -o ${wasmFile}`;
+  } -o ${wasmFileTemp} && wasm-gc ${wasmFileTemp} ${wasmFile}`;
   const self = this;
   child_process.exec(cmd, {}, function(error, stdout, stderr) {
     if (error)
@@ -34,6 +35,7 @@ module.exports = function(source) {
     })("${content64}")`;
 
     fs.unlinkSync(wasmFile);
+    fs.unlinkSync(wasmFileTemp);
 
     return callback(null, code);
   });
