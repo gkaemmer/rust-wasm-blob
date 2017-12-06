@@ -2063,6 +2063,10 @@ graceful-fs@^4.1.2, graceful-fs@^4.1.4, graceful-fs@^4.1.6:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/graceful-readlink/-/graceful-readlink-1.0.1.tgz#4cafad76bc62f02fa039b2f94e9a3dd3a391a725"
 
+gyronorm@^2.0.6:
+  version "2.0.6"
+  resolved "https://registry.yarnpkg.com/gyronorm/-/gyronorm-2.0.6.tgz#c3dbcaa0109087fea75378f78538befdcd53cee2"
+
 handlebars@^4.0.2:
   version "4.0.11"
   resolved "https://registry.yarnpkg.com/handlebars/-/handlebars-4.0.11.tgz#630a35dfe0294bc281edae6ffc5d329fc7982dcc"

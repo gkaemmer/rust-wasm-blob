@@ -1,11 +1,12 @@
 import React from "react";
 
-let physicsWasm;
+let physicsWasm, GyroNorm;
 if (process.browser) {
   physicsWasm = require("./physics.rs");
+  GyroNorm = require("../node_modules/gyronorm/dist/gyronorm.complete.min");
 }
 
-let speed = 2000;
+let speed = 20;
 
 function modulo(n, m) {
   return (n % m + m) % m;
@@ -19,6 +20,8 @@ class Body {
     this.isDragging = false;
     this.dragX = 0;
     this.dragY = 0;
+    this.gravX = 0;
+    this.gravY = 1;
     for (let i = 0; i < vertexCount; i++) this.vertices.push({ x: 0, y: 0 });
     if (process.browser) {
       window.vertices = this.vertices;
@@ -57,13 +60,15 @@ class Body {
     this.dragY = clientY - window.innerHeight / 2;
   }
 
-  update() {
+  update(force) {
+    if (this.isPaused && force !== true) return;
     const width = window.innerWidth;
     const height = window.innerHeight;
+    const finalSpeed = force === true ? 30 : speed;
 
     if (!this.isPrepared) return;
 
-    for (let i = 0; i < speed; i++) {
+    for (let i = 0; i < finalSpeed; i++) {
       // Calculate many times per frame
       this.module.step(
         this.pointer,
@@ -71,10 +76,12 @@ class Body {
         this.radius,
         width,
         height,
+        this.gravX,
+        this.gravY,
         this.isDragging,
         this.dragX,
         this.dragY,
-        30.0 / speed
+        1.0/speed
       );
     }
     this.centerX = 0;
@@ -137,9 +144,40 @@ export default class SoftBody extends React.Component {
     );
   };
 
+  handleDeviceOrientation = () => {};
+
   componentDidMount() {
     if (process.browser) this.body = new Body(25, 100);
     requestAnimationFrame(this.update);
+    document.addEventListener("keydown", e => {
+      if (e.code === "Space") {
+        if (this.body.isPaused) {
+          this.body.update(true);
+        }
+        this.body.isPaused = true;
+      }
+    });
+    const gn = new GyroNorm();
+    gn.init().then(() => {
+      gn.start(data => {
+        if (!data.do.alpha) return;
+        // This took a lot of guess and check
+        this.alpha = data.do.alpha;
+        this.beta = data.do.beta;
+        this.gamma = data.do.gamma;
+        const yaw = -this.gamma * Math.PI / 180;
+        const pitch = this.alpha * Math.PI / 180;
+        const roll = this.beta * Math.PI / 180;
+        const { cos, sin } = Math;
+
+        const x = -cos(yaw) * sin(pitch) * sin(roll) - sin(yaw) * cos(roll);
+        const y = cos(pitch) * sin(roll);
+        // const z = -sin(yaw)*sin(pitch)*sin(roll)+cos(yaw)*cos(roll);
+
+        this.body.gravX = 3 * x;
+        this.body.gravY = 3 * y;
+      });
+    });
   }
 
   componentWillUnmount() {
@@ -179,25 +217,12 @@ export default class SoftBody extends React.Component {
               stroke="transparent"
               fill="#fd4"
             />
+            {/* Eyes */}
             <circle
               fill="#333"
               cx={(this.body.vertices[0].x + this.body.centerX * 2) / 3}
               cy={(this.body.vertices[0].y + this.body.centerY * 2) / 3}
-              r={this.body.radius / 6}
-            />
-            <circle
-              fill="#333"
-              cx={
-                (this.body.vertices[Math.floor(this.body.vertexCount / 3)].x +
-                  this.body.centerX * 2) /
-                3
-              }
-              cy={
-                (this.body.vertices[Math.floor(this.body.vertexCount / 3)].y +
-                  this.body.centerY * 2) /
-                3
-              }
-              r={this.body.radius / 4}
+              r={this.body.radius / 8}
             />
             <circle
               fill="#333"
@@ -213,7 +238,22 @@ export default class SoftBody extends React.Component {
                   this.body.centerY * 2) /
                 3
               }
-              r={this.body.radius / 6}
+              r={this.body.radius / 8}
+            />
+            {/* Mouth */}
+            <circle
+              fill="#333"
+              cx={
+                (this.body.vertices[Math.floor(this.body.vertexCount / 3)].x +
+                  this.body.centerX * 2) /
+                3
+              }
+              cy={
+                (this.body.vertices[Math.floor(this.body.vertexCount / 3)].y +
+                  this.body.centerY * 2) /
+                3
+              }
+              r={this.body.radius / 4}
             />
           </g>
         </svg>
