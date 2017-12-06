@@ -9,6 +9,8 @@ if (process.browser) {
 
 // Calculate physics many times per frame, to help with stability
 let stepsPerFrame = 40;
+let vertexCount = 50;
+let radius = 100;
 
 // Because -2 % n = -2, rather than n - 2
 function modulo(n, m) {
@@ -43,7 +45,6 @@ class Body {
         sin: Math.sin
       }
     });
-    console.log(instance);
     this.module = {};
     this.module.alloc = instance.exports.alloc;
     this.module.dealloc = instance.exports.dealloc;
@@ -98,10 +99,6 @@ class Body {
       this.vertices[i].x = this.vertexData[i * 4 + 0];
       this.vertices[i].y = this.vertexData[i * 4 + 1];
       this.centerX += this.vertices[i].x;
-      if (isNaN(this.centerX))
-        throw new Error(
-          "Vertex " + i + " " + JSON.stringify(this.vertices[i]) + " caused NaN"
-        );
       this.centerY += this.vertices[i].y;
     }
     this.centerX /= this.vertexCount;
@@ -122,8 +119,6 @@ class Body {
     let x = this.centerX;
     if (this.keys.left) x -= this.radius / 2;
     if (this.keys.right) x += this.radius / 2;
-    if (isNaN(x))
-      throw new Error("Somehow got NaN " + this.radius + " " + this.centerX);
     return x;
   }
 
@@ -203,7 +198,7 @@ export default class SoftBody extends React.Component {
   };
 
   componentDidMount() {
-    this.body = new Body(25, 100);
+    this.body = new Body(vertexCount, radius);
     document.addEventListener("keydown", this.handleKey);
     document.addEventListener("keyup", this.handleKey);
     const gn = new GyroNorm();
@@ -223,53 +218,43 @@ export default class SoftBody extends React.Component {
     const eyeVertex2 = Math.floor(2 * this.body.vertexCount / 3);
     const mouthVertex = Math.floor(this.body.vertexCount / 3);
     return (
-      <div>
-        <style jsx>{`
-          .svg {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-          }
-        `}</style>
-        <svg
-          className="svg"
-          viewBox={[
-            -window.innerWidth / 2,
-            -window.innerHeight / 2,
-            window.innerWidth,
-            window.innerHeight
-          ].join(" ")}
-        >
-          <g onMouseDown={this.startDrag} onTouchStart={this.startDrag}>
-            <polygon
-              points={this.body.vertices.map(v => `${v.x} ${v.y}`).join(" ")}
-              stroke="transparent"
-              fill="#fd4"
-            />
-            {/* Eyes */}
-            <circle
-              fill="#333"
-              cx={(vertices[eyeVertex1].x + this.body.centerX * 2) / 3}
-              cy={(vertices[eyeVertex1].y + this.body.centerY * 2) / 3}
-              r={this.body.radius / 8}
-            />
-            <circle
-              fill="#333"
-              cx={(vertices[eyeVertex2].x + this.body.centerX * 2) / 3}
-              cy={(vertices[eyeVertex2].y + this.body.centerY * 2) / 3}
-              r={this.body.radius / 8}
-            />
-            {/* Mouth */}
-            <circle
-              fill="#333"
-              cx={(vertices[mouthVertex].x * 2 + this.body.centerX * 3) / 5}
-              cy={(vertices[mouthVertex].y * 2 + this.body.centerY * 3) / 5}
-              r={this.body.radius / 4}
-            />
-          </g>
-        </svg>
-      </div>
+      <svg
+        className="svg"
+        viewBox={[
+          -window.innerWidth / 2,
+          -window.innerHeight / 2,
+          window.innerWidth,
+          window.innerHeight
+        ].join(" ")}
+      >
+        <g onMouseDown={this.startDrag} onTouchStart={this.startDrag}>
+          <polygon
+            points={this.body.vertices.map(v => `${v.x} ${v.y}`).join(" ")}
+            stroke="transparent"
+            fill="#fd4"
+          />
+          {/* Eyes */}
+          <circle
+            fill="#333"
+            cx={(vertices[eyeVertex1].x + this.body.centerX * 2) / 3}
+            cy={(vertices[eyeVertex1].y + this.body.centerY * 2) / 3}
+            r={this.body.radius / 8}
+          />
+          <circle
+            fill="#333"
+            cx={(vertices[eyeVertex2].x + this.body.centerX * 2) / 3}
+            cy={(vertices[eyeVertex2].y + this.body.centerY * 2) / 3}
+            r={this.body.radius / 8}
+          />
+          {/* Mouth */}
+          <circle
+            fill="#333"
+            cx={(vertices[mouthVertex].x * 2 + this.body.centerX * 3) / 5}
+            cy={(vertices[mouthVertex].y * 2 + this.body.centerY * 3) / 5}
+            r={this.body.radius / 4}
+          />
+        </g>
+      </svg>
     );
   }
 }
