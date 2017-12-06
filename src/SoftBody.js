@@ -182,7 +182,7 @@ export default class SoftBody extends React.Component {
     const { cos, sin } = Math;
 
     const x = -cos(yaw) * sin(pitch) * sin(roll) - sin(yaw) * cos(roll);
-    const y = cos(pitch) * sin(roll);
+    const y = cos(yaw) * sin(roll);
     // const z = -sin(yaw)*sin(pitch)*sin(roll)+cos(yaw)*cos(roll);
 
     this.body.gravX = 3 * x;
