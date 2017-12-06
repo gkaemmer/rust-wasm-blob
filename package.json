@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "start": "next start"
+  },
   "dependencies": {
     "gyronorm": "^2.0.6",
     "next": "^4.1.4",

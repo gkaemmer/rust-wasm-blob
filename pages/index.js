@@ -1,4 +1,4 @@
-import SoftBody from "../components/SoftBody";
+import SoftBody from "../src/SoftBody";
 import Head from "next/head";
 
 export default () => (
