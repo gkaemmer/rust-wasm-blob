@@ -64,14 +64,14 @@ pub fn init(pointer: *mut Vertex, count: usize, radius: f64) {
 }
 
 const GRAVITY: f64 = 1.5;
-const DRAG_TENSION: f64 = 7.0;
+const DRAG_TENSION: f64 = 14.0;
 const TENSION: f64 = 60.0;
 const PRESSURE: f64 = 15.0;
 const FRICTION: f64 = 1.5;
 const BODY_DECAY: f64 = 0.03;
 const VERTEX_DECAY: f64 = 0.4;
 const BOUNCE: f64 = 0.2;
-const ACCERATION: f64 = 100.0;
+const ACCERATION: f64 = 150.0;
 
 // Use semi-implicit Euler method to sum forces on each vertex
 #[no_mangle]
@@ -83,8 +83,8 @@ pub fn step(
     height: f64,
     gravx: f64,
     gravy: f64, // yum
-    vx: f64,
-    vy: f64,
+    drivex: f64,
+    drivey: f64,
     drag: bool,
     dragx: f64,
     dragy: f64,
@@ -97,6 +97,7 @@ pub fn step(
     let mut avgy = 0.0;
     let mut avgvx = 0.0;
     let mut avgvy = 0.0;
+    let mut avg_drag_length = 0.0;
     let mut area = 0.0;
 
     let resting_edge_length = radius * 6.28318 / count as f64;
@@ -110,6 +111,7 @@ pub fn step(
         avgy += vertex.y;
         avgvx += vertex.vx;
         avgvy += vertex.vy;
+        avg_drag_length += vertex.drag_length;
     }
 
     area /= 2.0;
@@ -118,6 +120,7 @@ pub fn step(
     avgy /= count as f64;
     avgvx /= count as f64;
     avgvy /= count as f64;
+    avg_drag_length /= count as f64;
 
     for i in 0..count {
         let last = vertices[modulo((i - 1), count)];
@@ -176,8 +179,8 @@ pub fn step(
             }
         }
 
-        // Pull vertex toward mouse, as though attached by a spring to dragx
-        if drag && vertex.drag_length / radius < 1.1 {
+        // Pull vertex toward mouse, as though attracted to mouse by gravity
+        if drag && vertex.drag_length < avg_drag_length {
             let dx = dragx - vertex.x;
             let dy = dragy - vertex.y;
             let d2 = dx * dx + dy * dy;
@@ -188,10 +191,10 @@ pub fn step(
             }
         }
 
-        // Apply movement
+        // Apply user movement
         {
-            ax += vx * ACCERATION * time;
-            ay += vy * ACCERATION * time;
+            ax += drivex * ACCERATION * time;
+            ay += drivey * ACCERATION * time;
         }
 
         vertex.vx += cap(ax * time, 10.0);

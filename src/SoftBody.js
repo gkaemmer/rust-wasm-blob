@@ -21,20 +21,7 @@ class Body {
   constructor(vertexCount, radius) {
     this.vertexCount = vertexCount;
     this.radius = radius;
-    this.vertices = [];
-    this.isMouseDown = false;
-    this.mouseX = 0;
-    this.mouseY = 0;
-    this.gravX = 0;
-    this.gravY = 1;
-    this.centerX = 0;
-    this.centerY = 0;
-    this.keys = { left: false, right: false, up: false, down: false };
-    for (let i = 0; i < vertexCount; i++) this.vertices.push({ x: 0, y: 0 });
-    if (process.browser) {
-      window.vertices = this.vertices;
-      this.prepare();
-    }
+    this.prepare();
   }
 
   async prepare() {
@@ -51,12 +38,26 @@ class Body {
     this.module.step = instance.exports.step;
     this.module.init = instance.exports.init;
     this.instance = instance;
+    this.reset();
+  }
+
+  reset() {
+    this.vertices = [];
+    this.isMouseDown = false;
+    this.mouseX = 0;
+    this.mouseY = 0;
+    this.gravX = 0;
+    this.gravY = 1;
+    this.centerX = 0;
+    this.centerY = 0;
+    this.keys = { left: false, right: false, up: false, down: false };
+    for (let i = 0; i < vertexCount; i++) this.vertices.push({ x: 0, y: 0 });
+    if (this.vertexData) this.teardown();
     this.pointer = this.module.alloc(this.vertexCount);
 
-    // This is the data that is shared with WASM
-    // It's just an array of float64s
+    // This array is shared with WASM
     this.vertexData = new Float64Array(
-      instance.exports.memory.buffer,
+      this.instance.exports.memory.buffer,
       this.pointer,
       this.vertexCount * 5
     );
@@ -118,6 +119,7 @@ class Body {
       // Grab vertex data from shared memory
       this.vertices[i].x = this.vertexData[i * 5 + 0];
       this.vertices[i].y = this.vertexData[i * 5 + 1];
+      if (isNaN(this.vertices[i].x)) return this.reset(); // It blew up, reset
       this.centerX += this.vertices[i].x;
       this.centerY += this.vertices[i].y;
     }
