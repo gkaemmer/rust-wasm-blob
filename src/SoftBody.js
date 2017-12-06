@@ -1,13 +1,16 @@
 import React from "react";
 
+// Only require physics and gyronorm in the browser
 let physicsWasm, GyroNorm;
 if (process.browser) {
   physicsWasm = require("./physics.rs");
   GyroNorm = require("../node_modules/gyronorm/dist/gyronorm.complete.min");
 }
 
-let speed = 40;
+// Calculate physics many times per frame, to help with stability
+let stepsPerFrame = 40;
 
+// Because -2 % n = -2, rather than n - 2
 function modulo(n, m) {
   return (n % m + m) % m;
 }
@@ -48,12 +51,14 @@ class Body {
     this.module.init = instance.exports.init;
     this.instance = instance;
     this.pointer = this.module.alloc(this.vertexCount);
+
+    // This is the data that is shared with WASM
+    // It's just an array of float64s
     this.vertexData = new Float64Array(
       instance.exports.memory.buffer,
       this.pointer,
       this.vertexCount * 4
     );
-    window.vertexData = this.vertexData;
     this.module.init(this.pointer, this.vertexCount, this.radius);
     this.isPrepared = true;
   }
@@ -63,16 +68,14 @@ class Body {
     this.mouseY = clientY - window.innerHeight / 2;
   }
 
-  update(force) {
-    if (this.isPaused && force !== true) return;
+  update() {
     const width = window.innerWidth;
     const height = window.innerHeight;
-    const finalSpeed = force === true ? 30 : speed;
     const { isDragging, dragX, dragY } = this;
 
     if (!this.isPrepared) return;
 
-    for (let i = 0; i < finalSpeed; i++) {
+    for (let i = 0; i < stepsPerFrame; i++) {
       // Calculate many times per frame
       this.module.step(
         this.pointer,
@@ -85,7 +88,7 @@ class Body {
         isDragging,
         dragX,
         dragY,
-        1.0/speed
+        1.0 / stepsPerFrame
       );
     }
     this.centerX = 0;
@@ -95,7 +98,10 @@ class Body {
       this.vertices[i].x = this.vertexData[i * 4 + 0];
       this.vertices[i].y = this.vertexData[i * 4 + 1];
       this.centerX += this.vertices[i].x;
-      if (isNaN(this.centerX)) throw new Error("Vertex "+ i + " " + JSON.stringify(this.vertices[i]) + " caused NaN");
+      if (isNaN(this.centerX))
+        throw new Error(
+          "Vertex " + i + " " + JSON.stringify(this.vertices[i]) + " caused NaN"
+        );
       this.centerY += this.vertices[i].y;
     }
     this.centerX /= this.vertexCount;
@@ -116,7 +122,8 @@ class Body {
     let x = this.centerX;
     if (this.keys.left) x -= this.radius / 2;
     if (this.keys.right) x += this.radius / 2;
-    if (isNaN(x)) throw new Error("Somehow got NaN " + this.radius + " " + this.centerX);
+    if (isNaN(x))
+      throw new Error("Somehow got NaN " + this.radius + " " + this.centerX);
     return x;
   }
 
@@ -174,12 +181,9 @@ export default class SoftBody extends React.Component {
   handleDeviceOrientation = data => {
     if (!data.do.alpha) return;
     // This took a lot of guess and check
-    this.alpha = data.do.alpha;
-    this.beta = data.do.beta;
-    this.gamma = data.do.gamma;
-    const yaw = -this.gamma * Math.PI / 180;
-    const pitch = this.alpha * Math.PI / 180;
-    const roll = this.beta * Math.PI / 180;
+    const yaw = -data.do.gamma * Math.PI / 180;
+    const pitch = data.do.alpha * Math.PI / 180;
+    const roll = data.do.beta * Math.PI / 180;
     const { cos, sin } = Math;
 
     const x = -cos(yaw) * sin(pitch) * sin(roll) - sin(yaw) * cos(roll);
@@ -192,23 +196,20 @@ export default class SoftBody extends React.Component {
 
   handleKey = e => {
     const val = e.type === "keydown" ? true : false;
-    if (e.code === "ArrowLeft")
-      this.body.keys.left = val;
-    if (e.code === "ArrowRight")
-      this.body.keys.right = val;
-    if (e.code === "ArrowUp")
-      this.body.keys.up = val;
-    if (e.code === "ArrowDown")
-      this.body.keys.down = val;
-  }
+    if (e.code === "ArrowLeft") this.body.keys.left = val;
+    if (e.code === "ArrowRight") this.body.keys.right = val;
+    if (e.code === "ArrowUp") this.body.keys.up = val;
+    if (e.code === "ArrowDown") this.body.keys.down = val;
+  };
 
   componentDidMount() {
-    if (process.browser) this.body = new Body(25, 100);
-    requestAnimationFrame(this.update);
+    this.body = new Body(25, 100);
     document.addEventListener("keydown", this.handleKey);
     document.addEventListener("keyup", this.handleKey);
     const gn = new GyroNorm();
     gn.init().then(() => gn.start(this.handleDeviceOrientation));
+
+    requestAnimationFrame(this.update);
   }
 
   componentWillUnmount() {
@@ -217,17 +218,15 @@ export default class SoftBody extends React.Component {
 
   render() {
     if (!this.body) return null;
+    const vertices = this.body.vertices;
+    const eyeVertex1 = 0;
+    const eyeVertex2 = Math.floor(2 * this.body.vertexCount / 3);
+    const mouthVertex = Math.floor(this.body.vertexCount / 3);
     return (
-      <div className="stage">
+      <div>
         <style jsx>{`
-          .stage {
-            position: fixed;
-            top: 0;
-            bottom: 0;
-            left: 0;
-            right: 0;
-          }
           .svg {
+            position: fixed;
             top: 0;
             left: 0;
             right: 0;
@@ -251,39 +250,21 @@ export default class SoftBody extends React.Component {
             {/* Eyes */}
             <circle
               fill="#333"
-              cx={(this.body.vertices[0].x + this.body.centerX * 2) / 3}
-              cy={(this.body.vertices[0].y + this.body.centerY * 2) / 3}
+              cx={(vertices[eyeVertex1].x + this.body.centerX * 2) / 3}
+              cy={(vertices[eyeVertex1].y + this.body.centerY * 2) / 3}
               r={this.body.radius / 8}
             />
             <circle
               fill="#333"
-              cx={
-                (this.body.vertices[Math.floor(2 * this.body.vertexCount / 3)]
-                  .x +
-                  this.body.centerX * 2) /
-                3
-              }
-              cy={
-                (this.body.vertices[Math.floor(2 * this.body.vertexCount / 3)]
-                  .y +
-                  this.body.centerY * 2) /
-                3
-              }
+              cx={(vertices[eyeVertex2].x + this.body.centerX * 2) / 3}
+              cy={(vertices[eyeVertex2].y + this.body.centerY * 2) / 3}
               r={this.body.radius / 8}
             />
             {/* Mouth */}
             <circle
               fill="#333"
-              cx={
-                (this.body.vertices[Math.floor(this.body.vertexCount / 3)].x * 2 +
-                  this.body.centerX * 3) /
-                5
-              }
-              cy={
-                (this.body.vertices[Math.floor(this.body.vertexCount / 3)].y * 2 +
-                  this.body.centerY * 3) /
-                5
-              }
+              cx={(vertices[mouthVertex].x * 2 + this.body.centerX * 3) / 5}
+              cy={(vertices[mouthVertex].y * 2 + this.body.centerY * 3) / 5}
               r={this.body.radius / 4}
             />
           </g>
