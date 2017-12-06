@@ -8,7 +8,8 @@ pub struct Vertex {
     x: f64,
     y: f64,
     vx: f64,
-    vy: f64
+    vy: f64,
+    drag_length: f64
 }
 
 fn modulo(n: i32, m: i32) -> usize {
@@ -56,19 +57,21 @@ pub fn init(pointer: *mut Vertex, count: usize, radius: f64) {
             x: radius * (i as f64 / count as f64 * 6.28318).cos(),
             y: radius * (i as f64 / count as f64 * 6.28318).sin(),
             vx: 0.0,
-            vy: 0.0
+            vy: 0.0,
+            drag_length: radius
         }
     }
 }
 
 const GRAVITY: f64 = 1.5;
-const DRAG_TENSION: f64 = 4.0;
+const DRAG_TENSION: f64 = 7.0;
 const TENSION: f64 = 60.0;
 const PRESSURE: f64 = 15.0;
-const FRICTION: f64 = 1.0;
+const FRICTION: f64 = 1.5;
 const BODY_DECAY: f64 = 0.03;
 const VERTEX_DECAY: f64 = 0.4;
 const BOUNCE: f64 = 0.2;
+const ACCERATION: f64 = 100.0;
 
 // Use semi-implicit Euler method to sum forces on each vertex
 #[no_mangle]
@@ -80,6 +83,8 @@ pub fn step(
     height: f64,
     gravx: f64,
     gravy: f64, // yum
+    vx: f64,
+    vy: f64,
     drag: bool,
     dragx: f64,
     dragy: f64,
@@ -172,15 +177,21 @@ pub fn step(
         }
 
         // Pull vertex toward mouse, as though attached by a spring to dragx
-        if drag {
-            let dx = dragx - avgx;
-            let dy = dragy - avgy;
+        if drag && vertex.drag_length / radius < 1.1 {
+            let dx = dragx - vertex.x;
+            let dy = dragy - vertex.y;
             let d2 = dx * dx + dy * dy;
             let d = d2.sqrt();
-            if d > 1.0 {
-                ax += (dx / d) * DRAG_TENSION * d * time;
-                ay += (dy / d) * DRAG_TENSION * d * time;
+            if d > vertex.drag_length {
+                ax += (dx / d) * DRAG_TENSION * (d - vertex.drag_length) * time;
+                ay += (dy / d) * DRAG_TENSION * (d - vertex.drag_length) * time;
             }
+        }
+
+        // Apply movement
+        {
+            ax += vx * ACCERATION * time;
+            ay += vy * ACCERATION * time;
         }
 
         vertex.vx += cap(ax * time, 10.0);

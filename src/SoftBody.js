@@ -58,7 +58,7 @@ class Body {
     this.vertexData = new Float64Array(
       instance.exports.memory.buffer,
       this.pointer,
-      this.vertexCount * 4
+      this.vertexCount * 5
     );
     this.module.init(this.pointer, this.vertexCount, this.radius);
     this.isPrepared = true;
@@ -67,6 +67,24 @@ class Body {
   handleDrag(clientX, clientY) {
     this.mouseX = clientX - window.innerWidth / 2;
     this.mouseY = clientY - window.innerHeight / 2;
+    if (!this.isMouseDown) {
+      // Calculate drag lengths
+      for (let i = 0; i < this.vertexCount; i++) {
+        const dx = this.mouseX - this.vertexData[i * 5 + 0];
+        const dy = this.mouseY - this.vertexData[i * 5 + 1];
+        const d = Math.sqrt(dx * dx + dy * dy);
+        this.vertexData[i * 5 + 4] = d;
+      }
+      this.isMouseDown = true;
+    }
+  }
+
+  stopDrag() {
+    this.isMouseDown = false;
+    // Reset drag lengths to radius
+    for (let i = 0; i < this.vertexCount; i++) {
+      this.vertexData[i * 5 + 4] = this.radius;
+    }
   }
 
   update() {
@@ -86,9 +104,11 @@ class Body {
         height,
         this.gravX,
         this.gravY,
-        isDragging,
-        dragX,
-        dragY,
+        this.vx,
+        this.vy,
+        this.isMouseDown,
+        this.mouseX,
+        this.mouseY,
         1.0 / stepsPerFrame
       );
     }
@@ -96,8 +116,8 @@ class Body {
     this.centerY = 0;
     for (let i = 0; i < this.vertexCount; i++) {
       // Grab vertex data from shared memory
-      this.vertices[i].x = this.vertexData[i * 4 + 0];
-      this.vertices[i].y = this.vertexData[i * 4 + 1];
+      this.vertices[i].x = this.vertexData[i * 5 + 0];
+      this.vertices[i].y = this.vertexData[i * 5 + 1];
       this.centerX += this.vertices[i].x;
       this.centerY += this.vertices[i].y;
     }
@@ -106,28 +126,21 @@ class Body {
   }
 
   teardown() {
-    this.module.dealloc(this.pointer, this.vertexCount * 4);
+    this.module.dealloc(this.pointer, this.vertexCount * 5);
   }
 
-  get isDragging() {
-    const keys = this.keys;
-    return this.isMouseDown || keys.left || keys.right || keys.up || keys.down;
+  get vx() {
+    let vx = 0;
+    if (this.keys.left) vx -= 1;
+    if (this.keys.right) vx += 1;
+    return vx;
   }
 
-  get dragX() {
-    if (this.isMouseDown) return this.mouseX;
-    let x = this.centerX;
-    if (this.keys.left) x -= this.radius / 2;
-    if (this.keys.right) x += this.radius / 2;
-    return x;
-  }
-
-  get dragY() {
-    if (this.isMouseDown) return this.mouseY;
-    let y = this.centerY;
-    if (this.keys.up) y -= this.radius / 2;
-    if (this.keys.down) y += this.radius / 2;
-    return y;
+  get vy() {
+    let vy = 0;
+    if (this.keys.up) vy -= 1;
+    if (this.keys.down) vy += 1;
+    return vy;
   }
 }
 
@@ -145,7 +158,6 @@ export default class SoftBody extends React.Component {
 
   startDrag = e => {
     e.preventDefault();
-    this.body.isMouseDown = true;
     let moveHandler, endHandler, moveEvent, endEvent;
     if (e.touches) {
       // Use touch events
@@ -166,7 +178,7 @@ export default class SoftBody extends React.Component {
     window.addEventListener(
       endEvent,
       (endHandler = e => {
-        this.body.isMouseDown = false;
+        this.body.stopDrag();
         window.removeEventListener(moveEvent, moveHandler);
         window.removeEventListener(endEvent, endHandler);
       })
