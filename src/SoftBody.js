@@ -219,7 +219,9 @@ export default class SoftBody extends React.Component {
     const mouthVertex = Math.floor(this.body.vertexCount / 3);
     return (
       <svg
+        style={{ position: "absolute" }}
         className="svg"
+        onTouchStart={e => e.preventDefault()}
         viewBox={[
           -window.innerWidth / 2,
           -window.innerHeight / 2,
