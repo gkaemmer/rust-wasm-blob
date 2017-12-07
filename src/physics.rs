@@ -180,7 +180,7 @@ pub fn step(
         }
 
         // Pull vertex toward mouse, as though attracted to mouse by gravity
-        if drag && vertex.drag_length < avg_drag_length {
+        if drag {
             let dx = dragx - vertex.x;
             let dy = dragy - vertex.y;
             let d2 = dx * dx + dy * dy;
