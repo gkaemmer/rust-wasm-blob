@@ -226,7 +226,7 @@ export default class SoftBody extends React.Component {
   }
 
   render() {
-    if (!this.body) return null;
+    if (!this.body || !this.body.vertices) return null;
     const vertices = this.body.vertices;
     const eyeVertex1 = 0;
     const eyeVertex2 = Math.floor(2 * this.body.vertexCount / 3);
