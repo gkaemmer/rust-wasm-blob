@@ -8,6 +8,8 @@ Blob is simulated by calls to WASM. The coordinates and velocities of each verte
 
 Rendering is done with a few SVG polygons in React.
 
+The site uses Next.js and doesn't really need to, but it really cuts down boilerplate.
+
 ### `rustLoader.js`
 
 SoftBody.js `require()`s the rust source code directly, and the import is managed by a webpack loader that runs the rust compiler (to the `wasm32-unknown-unknown` target). It grabs the WASM byte code and creates Javascript glue code automatically.
