@@ -14,14 +14,14 @@ SoftBody.js `require()`s the rust source code directly, and the import is manage
 
 ### Sharing data with WASM
 
-For a blob with 25 sides, the shared data is a Float64Array with 100 (25 * 5) items in it. In rust, this memory is passed in as a `*mut Vertex`, and turned into a `&mut [Vertex]` with `slice::from_raw_parts_mut`. Then, the `init` and `step` functions can edit the data freely.
+For a blob with 50 sides, the shared data is a Float64Array with 250 (50 * 5) numbers in it. In rust, this memory is passed in as a `*mut Vertex`, and turned into a `&mut [Vertex]` with `slice::from_raw_parts_mut`. Then, the `init` and `step` functions can edit the data freely.
 
 The javascript must know how that array is structured. To make interaction and rendering easier, the coordinates are copied every frame:
 ```js
 for (let i = 0; i < this.vertexCount; i++) {
-  // Vertex is stored as four floats at vertexData[i * 4];
-  this.vertices[i].x = this.vertexData[i * 4 + 0];
-  this.vertices[i].y = this.vertexData[i * 4 + 1];
+  // Vertex is stored as five floats at vertexData[i * 5];
+  this.vertices[i].x = this.vertexData[i * 5 + 0];
+  this.vertices[i].y = this.vertexData[i * 5 + 1];
 }
 ```
 
