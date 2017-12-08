@@ -225,6 +225,8 @@ export default class SoftBody extends React.Component {
     this.body.teardown();
   }
 
+  preventDefault = e => e.preventDefault();
+
   render() {
     if (!this.body || !this.body.vertices) return null;
     const vertices = this.body.vertices;
@@ -235,7 +237,7 @@ export default class SoftBody extends React.Component {
       <svg
         style={{ position: "absolute" }}
         className="svg"
-        onTouchStart={e => e.preventDefault()}
+        onTouchStart={this.preventDefault}
         viewBox={[
           -window.innerWidth / 2,
           -window.innerHeight / 2,
