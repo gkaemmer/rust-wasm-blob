@@ -1,4 +1,6 @@
 import React from "react";
+import BlobSVG from "./BlobSVG";
+import BlobCanvas from "./BlobCanvas";
 
 // Only require physics and gyronorm in the browser
 let physicsWasm, GyroNorm;
@@ -39,6 +41,7 @@ class Body {
     this.module.init = instance.exports.init;
     this.instance = instance;
     this.reset();
+    if (this.onReady) this.onReady();
   }
 
   reset() {
@@ -152,9 +155,12 @@ let origin = {
 };
 
 export default class SoftBody extends React.Component {
+  state = {
+    render: "svg"
+  };
+
   update = () => {
     this.body.update();
-    this.forceUpdate();
     requestAnimationFrame(this.update);
   };
 
@@ -213,11 +219,11 @@ export default class SoftBody extends React.Component {
 
   componentDidMount() {
     this.body = new Body(vertexCount, radius);
+    this.body.onReady = () => this.forceUpdate();
     document.addEventListener("keydown", this.handleKey);
     document.addEventListener("keyup", this.handleKey);
     const gn = new GyroNorm();
     gn.init().then(() => gn.start(this.handleDeviceOrientation));
-
     requestAnimationFrame(this.update);
   }
 
@@ -229,50 +235,64 @@ export default class SoftBody extends React.Component {
 
   render() {
     if (!this.body || !this.body.vertices) return null;
-    const vertices = this.body.vertices;
-    const eyeVertex1 = 0;
-    const eyeVertex2 = Math.floor(2 * this.body.vertexCount / 3);
-    const mouthVertex = Math.floor(this.body.vertexCount / 3);
+
+    const Blob = this.state.render === "canvas" ? BlobCanvas : BlobSVG;
     return (
-      <svg
-        style={{ position: "absolute" }}
-        className="svg"
-        onTouchStart={this.preventDefault}
-        viewBox={[
-          -window.innerWidth / 2,
-          -window.innerHeight / 2,
-          window.innerWidth,
-          window.innerHeight
-        ].join(" ")}
-      >
-        <g onMouseDown={this.startDrag} onTouchStart={this.startDrag}>
-          <polygon
-            points={this.body.vertices.map(v => `${v.x} ${v.y}`).join(" ")}
-            stroke="transparent"
-            fill="#fd4"
-          />
-          {/* Eyes */}
-          <circle
-            fill="#333"
-            cx={(vertices[eyeVertex1].x + this.body.centerX * 2) / 3}
-            cy={(vertices[eyeVertex1].y + this.body.centerY * 2) / 3}
-            r={this.body.radius / 8}
-          />
-          <circle
-            fill="#333"
-            cx={(vertices[eyeVertex2].x + this.body.centerX * 2) / 3}
-            cy={(vertices[eyeVertex2].y + this.body.centerY * 2) / 3}
-            r={this.body.radius / 8}
-          />
-          {/* Mouth */}
-          <circle
-            fill="#333"
-            cx={(vertices[mouthVertex].x * 2 + this.body.centerX * 3) / 5}
-            cy={(vertices[mouthVertex].y * 2 + this.body.centerY * 3) / 5}
-            r={this.body.radius / 4}
-          />
-        </g>
-      </svg>
+      <div>
+        <style jsx>{`
+          .help {
+            position: absolute;
+            z-index: 10;
+            text-align: right;
+            padding: 15px;
+            font-family: system-ui, Helvetica, sans-serif;
+            line-height: 1.5em;
+            color: #aaa;
+            width: 100%;
+            box-sizing: border-box;
+          }
+          .help a {
+            color: #67f;
+          }
+        `}</style>
+        <div className="help">
+          {innerWidth > 400 && (
+            <span>
+              Arrow keys to move<br />
+            </span>
+          )}
+          <span>Drag to throw</span><br />
+          Render using:{" "}
+          {this.state.render === "canvas" ? (
+            <span>Canvas</span>
+          ) : (
+            <a
+              href="#"
+              onClick={e => {
+                e.preventDefault();
+                this.setState({ render: "canvas" });
+              }}
+            >
+              Canvas
+            </a>
+          )}
+          {" | "}
+          {this.state.render === "svg" ? (
+            <span>SVG</span>
+          ) : (
+            <a
+              href="#"
+              onClick={e => {
+                e.preventDefault();
+                this.setState({ render: "svg" });
+              }}
+            >
+              SVG
+            </a>
+          )}
+        </div>
+        <Blob body={this.body} onDragStart={this.startDrag} />
+      </div>
     );
   }
 }

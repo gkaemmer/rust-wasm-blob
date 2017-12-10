@@ -14,18 +14,7 @@ export default () => (
       body {
         margin: 0;
       }
-      .help {
-        text-align: right;
-        padding: 15px;
-        font-family: system-ui, Helvetica, sans-serif;
-        line-height: 1.5em;
-        color: #aaa;
-      }
     `}</style>
     <SoftBody />
-    <div className="help">
-      {innerWidth > 400 && <span>Arrow keys to move<br /></span>}
-      <span>Drag to throw</span>
-    </div>
   </div>
 );
