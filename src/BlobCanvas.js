@@ -33,14 +33,14 @@ export default class BlobSVG extends React.Component {
   draw = () => {
     const { body } = this.props;
     const { vertices } = body;
-    this.ctx.fillStyle = "#fff";
+    this.ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
     this.ctx.fillRect(
       0,
       0,
       windowSize.width * ratio,
       windowSize.height * ratio
     );
-    this.ctx.fillStyle = "#fd4";
+    this.ctx.fillStyle = "#f43";
     this.ctx.beginPath();
     this.ctx.moveTo(sx(vertices[0].x), sy(vertices[0].y));
     for (let vertex of vertices) {

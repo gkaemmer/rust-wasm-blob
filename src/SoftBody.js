@@ -264,7 +264,7 @@ export default class SoftBody extends React.Component {
           <span>Drag to throw</span><br />
           Render using:{" "}
           {this.state.render === "canvas" ? (
-            <span>Canvas</span>
+            <span>Canvas (current)</span>
           ) : (
             <a
               href="#"
@@ -278,7 +278,7 @@ export default class SoftBody extends React.Component {
           )}
           {" | "}
           {this.state.render === "svg" ? (
-            <span>SVG</span>
+            <span>SVG (current)</span>
           ) : (
             <a
               href="#"
